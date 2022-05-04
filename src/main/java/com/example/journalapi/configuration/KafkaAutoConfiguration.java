@@ -1,9 +1,10 @@
 package com.example.journalapi.configuration;
 
+import com.example.journalapi.service.KafkaMessageSender;
+import com.example.journalapi.service.impl.KafkaMessageSenderImpl;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.producer.ProducerConfig;
-import org.apache.kafka.common.protocol.Message;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -29,11 +30,21 @@ public class KafkaAutoConfiguration {
     @Value("${spring.kafka.producer.max-request-size}")
     private Integer maxRequestSize;
 
+    @Bean(name = "journalMessageSender")
+    @ConditionalOnProperty("spring.kafka.topics.journal-request")
+    @ConditionalOnMissingBean(name = "journalMessageSender")
+    public KafkaMessageSender journalMessageSender(
+            KafkaTemplate<String, Object> journalMessageKafkaTemplate,
+            @Value("${spring.kafka.topics.journal-request}") String journalKafkaTopic) {
+        log.info("Create KafkaIntegrationJournalMessageSender bean of IntegrationJournalMessageSender");
+        return new KafkaMessageSenderImpl(journalMessageKafkaTemplate, journalKafkaTopic);
+    }
+
     @Bean(name = "journalKafkaTemplate")
     @ConditionalOnMissingBean(name = "journalMessageKafkaTemplate")
     @ConditionalOnProperty("spring.kafka.topics.journal-request")
-    public KafkaTemplate<String, Message> journalMessageKafkaTemplate(
-            ProducerFactory<String, Message> journalMessageKafkaProducerFactory) {
+    public KafkaTemplate<String, Object> journalMessageKafkaTemplate(
+            ProducerFactory<String, Object> journalMessageKafkaProducerFactory) {
         log.info("Create KafkaTemplate<String, Message> bean");
         return new KafkaTemplate<>(journalMessageKafkaProducerFactory);
     }
@@ -41,7 +52,7 @@ public class KafkaAutoConfiguration {
     @Bean(name = "journalMessageKafkaProducerFactory")
     @ConditionalOnMissingBean(name = "journalMessageKafkaProducerFactory")
     @ConditionalOnProperty("spring.kafka.topics.journal-request")
-    public ProducerFactory<String, Message> journalMessageKafkaProducerFactory() {
+    public ProducerFactory<String, Object> journalMessageKafkaProducerFactory() {
         log.info("Create ProducerFactory<String, Message> bean");
         return createKafkaProducerFactory();
     }
